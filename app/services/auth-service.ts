@@ -1,0 +1,112 @@
+import { UserManager, type User } from "oidc-client-ts";
+import type { AppConfig } from "../core/app-config";
+
+export interface AuthSnapshot {
+  email: string | null;
+  status: "authenticated" | "loading" | "signed-out";
+  subject: string | null;
+}
+
+type Listener = () => void;
+
+export class AuthService {
+  private readonly listeners = new Set<Listener>();
+  private readonly manager: UserManager | null;
+  private snapshot: AuthSnapshot = {
+    email: null,
+    status: "loading",
+    subject: null,
+  };
+
+  constructor(config: AppConfig) {
+    this.manager =
+      config.cognitoAuthority && config.cognitoClientId
+        ? new UserManager({
+            authority: config.cognitoAuthority,
+            client_id: config.cognitoClientId,
+            redirect_uri: config.cognitoRedirectUri,
+            post_logout_redirect_uri: config.cognitoRedirectUri,
+            response_type: "code",
+            scope: "openid email profile",
+          })
+        : null;
+
+    if (!this.manager) {
+      this.setSnapshot({ email: null, status: "signed-out", subject: null });
+      return;
+    }
+
+    this.manager.events.addUserLoaded((user) => this.applyUser(user));
+    this.manager.events.addUserUnloaded(() =>
+      this.setSnapshot({ email: null, status: "signed-out", subject: null }),
+    );
+
+    void this.loadUser();
+  }
+
+  subscribe(listener: Listener) {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  getSnapshot() {
+    return this.snapshot;
+  }
+
+  async completeSignInFromRedirect() {
+    if (!this.manager || !window.location.search.includes("code=")) {
+      return;
+    }
+
+    const user = await this.manager.signinRedirectCallback();
+    this.applyUser(user);
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+
+  async getIdToken() {
+    const user = await this.manager?.getUser();
+    return user?.id_token ?? null;
+  }
+
+  async signIn() {
+    if (!this.manager) {
+      throw new Error("Cognito OIDC settings are not configured.");
+    }
+
+    await this.manager.signinRedirect();
+  }
+
+  async signOut() {
+    if (!this.manager) {
+      this.setSnapshot({ email: null, status: "signed-out", subject: null });
+      return;
+    }
+
+    await this.manager.signoutRedirect();
+  }
+
+  private async loadUser() {
+    const user = await this.manager?.getUser();
+    this.applyUser(user ?? null);
+  }
+
+  private applyUser(user: User | null) {
+    if (!user || user.expired) {
+      this.setSnapshot({ email: null, status: "signed-out", subject: null });
+      return;
+    }
+
+    this.setSnapshot({
+      email: typeof user.profile.email === "string" ? user.profile.email : null,
+      status: "authenticated",
+      subject: user.profile.sub ?? null,
+    });
+  }
+
+  private setSnapshot(snapshot: AuthSnapshot) {
+    this.snapshot = snapshot;
+    for (const listener of this.listeners) {
+      listener();
+    }
+  }
+}
