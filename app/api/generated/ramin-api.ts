@@ -52,6 +52,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/assistants/conversation/get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AssistantController_getConversation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/assistants/{assistantKey}/messages/stream": {
         parameters: {
             query?: never;
@@ -78,6 +94,22 @@ export interface paths {
         get: operations["HealthController_getHealth"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/mcp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["McpController_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -134,9 +166,53 @@ export interface components {
             isSuccess: boolean;
             data?: components["schemas"]["AssistantSummaryDto"][];
         };
+        GetAssistantConversationPayloadDto: {
+            conversationId: string;
+        };
+        GetAssistantConversationRequestDto: {
+            correlationId?: string;
+            payload?: components["schemas"]["GetAssistantConversationPayloadDto"];
+        };
+        AssistantConversationMessageDto: {
+            actorDisplayName?: string;
+            actorUserId?: string;
+            /** Format: date-time */
+            createdDateUtc: string;
+            id: string;
+            /** @enum {string} */
+            role: "assistant" | "system" | "tool" | "user";
+            text: string;
+        };
+        AssistantConversationParticipantDto: {
+            displayName?: string;
+            /** Format: date-time */
+            joinedDateUtc: string;
+            /** @enum {string} */
+            role: "member" | "owner";
+            /** @enum {string} */
+            status: "active" | "removed";
+            userId: string;
+        };
+        AssistantConversationDto: {
+            assistantKey: string;
+            /** Format: date-time */
+            createdDateUtc: string;
+            id: string;
+            messages: components["schemas"]["AssistantConversationMessageDto"][];
+            participants: components["schemas"]["AssistantConversationParticipantDto"][];
+            /** Format: date-time */
+            lastUpdatedDateUtc: string;
+        };
+        GetAssistantConversationResponseDto: {
+            correlationId?: string;
+            errors: components["schemas"]["ErrorDto"][];
+            isSuccess: boolean;
+            data?: components["schemas"]["AssistantConversationDto"];
+        };
         SendAssistantMessagePayloadDto: {
             message: string;
             conversationId?: string;
+            participantUserIds?: string[];
         };
         SendAssistantMessageDto: {
             correlationId?: string;
@@ -144,6 +220,7 @@ export interface components {
         };
         AssistantThreadUpdateDto: {
             conversationId: string;
+            messageId?: string;
             /** @enum {string} */
             role: "assistant" | "system" | "user";
             text: string;
@@ -234,6 +311,29 @@ export interface operations {
             };
         };
     };
+    AssistantController_getConversation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GetAssistantConversationRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetAssistantConversationResponseDto"];
+                };
+            };
+        };
+    };
     AssistantController_streamMessage: {
         parameters: {
             query?: never;
@@ -269,6 +369,28 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    McpController_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description JSON-RPC 2.0 response for the MCP streamable HTTP transport. */
             200: {
                 headers: {
                     [name: string]: unknown;

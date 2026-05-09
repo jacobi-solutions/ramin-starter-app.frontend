@@ -52,4 +52,28 @@ describe("AssistantService", () => {
     );
     expect(onUpdate).toHaveBeenCalledWith(update);
   });
+
+  it("loads a conversation by id", async () => {
+    const conversation = {
+      assistantKey: "support",
+      createdDateUtc: "2026-01-01T00:00:00.000Z",
+      id: "conversation-1",
+      lastUpdatedDateUtc: "2026-01-01T00:00:00.000Z",
+      messages: [],
+      participants: [],
+    };
+    const api = {
+      post: vi.fn().mockResolvedValue({
+        data: conversation,
+        errors: [],
+        isSuccess: true,
+      }),
+    } as unknown as ApiClient;
+    const service = new AssistantService(api);
+
+    await expect(service.getConversation("conversation-1")).resolves.toEqual(conversation);
+    expect(api.post).toHaveBeenCalledWith("/assistants/conversation/get", {
+      payload: { conversationId: "conversation-1" },
+    });
+  });
 });

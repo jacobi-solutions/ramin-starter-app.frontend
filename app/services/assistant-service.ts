@@ -7,6 +7,8 @@ export type AssistantSummary = components["schemas"]["AssistantSummaryDto"];
 
 export type AssistantThreadUpdate = components["schemas"]["AssistantThreadUpdateDto"];
 
+export type AssistantConversation = components["schemas"]["AssistantConversationDto"];
+
 export type SendAssistantMessageRequest = components["schemas"]["SendAssistantMessagePayloadDto"];
 
 export class AssistantService {
@@ -15,6 +17,14 @@ export class AssistantService {
   async listAssistants() {
     return unwrapResponse(
       await this.api.post<BaseResponse<AssistantSummary[]>>("/assistants/list", {}),
+    );
+  }
+
+  async getConversation(conversationId: string) {
+    return unwrapResponse(
+      await this.api.post<BaseResponse<AssistantConversation>>("/assistants/conversation/get", {
+        payload: { conversationId },
+      }),
     );
   }
 
