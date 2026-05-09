@@ -1,4 +1,6 @@
 import type { ApiClient } from "./api-client";
+import type { BaseResponse } from "./base-contracts";
+import { unwrapResponse } from "./base-contracts";
 
 export interface AssistantSummary {
   description: string;
@@ -21,8 +23,10 @@ export interface SendAssistantMessageRequest {
 export class AssistantService {
   constructor(private readonly api: ApiClient) {}
 
-  listAssistants() {
-    return this.api.get<AssistantSummary[]>("/assistants");
+  async listAssistants() {
+    return unwrapResponse(
+      await this.api.post<BaseResponse<AssistantSummary[]>>("/assistants/list", {}),
+    );
   }
 
   streamMessage(
@@ -30,8 +34,8 @@ export class AssistantService {
     request: SendAssistantMessageRequest,
     onUpdate: (update: AssistantThreadUpdate) => void,
   ) {
-    return this.api.stream(`/assistants/${assistantKey}/messages/stream`, request, (event) =>
-      onUpdate(event as AssistantThreadUpdate),
+    return this.api.stream(`/assistants/${assistantKey}/messages/stream`, { payload: request }, (event) =>
+      onUpdate(unwrapResponse(event as BaseResponse<AssistantThreadUpdate>)),
     );
   }
 }

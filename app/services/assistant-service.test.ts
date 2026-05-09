@@ -12,12 +12,16 @@ describe("AssistantService", () => {
       },
     ];
     const api = {
-      get: vi.fn().mockResolvedValue(assistants),
+      post: vi.fn().mockResolvedValue({
+        data: assistants,
+        errors: [],
+        isSuccess: true,
+      }),
     } as unknown as ApiClient;
     const service = new AssistantService(api);
 
     await expect(service.listAssistants()).resolves.toEqual(assistants);
-    expect(api.get).toHaveBeenCalledWith("/assistants");
+    expect(api.post).toHaveBeenCalledWith("/assistants/list", {});
   });
 
   it("streams assistant updates through the API client", async () => {
@@ -28,7 +32,13 @@ describe("AssistantService", () => {
       type: "message",
     };
     const api = {
-      stream: vi.fn(async (_path, _body, onEvent) => onEvent(update)),
+      stream: vi.fn(async (_path, _body, onEvent) =>
+        onEvent({
+          data: update,
+          errors: [],
+          isSuccess: true,
+        }),
+      ),
     } as unknown as ApiClient;
     const service = new AssistantService(api);
     const onUpdate = vi.fn();
@@ -37,7 +47,7 @@ describe("AssistantService", () => {
 
     expect(api.stream).toHaveBeenCalledWith(
       "/assistants/support/messages/stream",
-      { message: "hello" },
+      { payload: { message: "hello" } },
       expect.any(Function),
     );
     expect(onUpdate).toHaveBeenCalledWith(update);
