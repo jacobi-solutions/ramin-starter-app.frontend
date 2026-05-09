@@ -63,9 +63,9 @@ export class AuthService {
     window.history.replaceState({}, document.title, window.location.pathname);
   }
 
-  async getIdToken() {
+  async getAccessToken() {
     const user = await this.manager?.getUser();
-    return user?.id_token ?? null;
+    return user?.access_token ?? null;
   }
 
   async signIn() {

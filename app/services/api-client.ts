@@ -73,7 +73,7 @@ export class ApiClient {
   }
 
   private async fetch(path: string, init: RequestInit) {
-    const token = await this.authService.getIdToken();
+    const token = await this.authService.getAccessToken();
     const response = await window.fetch(`${this.baseUrl}${path}`, {
       ...init,
       headers: {
