@@ -15,6 +15,7 @@ body {
 }
 
 button,
+input,
 textarea {
   font: inherit;
 }
@@ -35,14 +36,18 @@ button:disabled {
   cursor: not-allowed;
 }
 
+input,
 textarea {
   width: 100%;
-  resize: vertical;
   border: 1px solid #c9d4ce;
   border-radius: 6px;
   padding: 0.75rem;
   color: #17201c;
   background: #ffffff;
+}
+
+textarea {
+  resize: vertical;
 }
 
 .shell {
@@ -164,6 +169,41 @@ dd {
   gap: 0.75rem;
 }
 
+.panel-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.panel-title-row h2 {
+  margin-bottom: 0;
+}
+
+.secondary-button {
+  min-height: 2rem;
+  border: 1px solid #c9d4ce;
+  padding: 0 0.75rem;
+  color: #17201c;
+  background: #ffffff;
+}
+
+.conversation-meta {
+  grid-template-columns: minmax(7rem, auto) 1fr;
+  margin-bottom: 0;
+}
+
+.field {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.field span {
+  color: #4f5b56;
+  font-size: 0.84rem;
+  font-weight: 650;
+}
+
 .stream-panel ol {
   display: grid;
   gap: 0.75rem;
@@ -175,6 +215,14 @@ dd {
 .stream-panel li {
   border-left: 3px solid #d86f45;
   padding-left: 0.75rem;
+}
+
+.stream-panel li.role-assistant {
+  border-left-color: #116466;
+}
+
+.stream-panel li.role-user {
+  border-left-color: #d86f45;
 }
 
 .stream-panel span {

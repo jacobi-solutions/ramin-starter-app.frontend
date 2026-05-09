@@ -1,6 +1,6 @@
 import type { Route } from "./+types/home";
 import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth, useServices } from "../services/service-context";
 import type { AssistantThreadUpdate } from "../services/assistant-service";
 
@@ -13,8 +13,11 @@ export function meta({}: Route.MetaArgs) {
 
 export default function Home() {
   const { accounts, assistant, auth } = useServices();
+  const queryClient = useQueryClient();
   const authState = useAuth();
+  const [conversationId, setConversationId] = useState<string>();
   const [message, setMessage] = useState("Create a support request for my onboarding issue.");
+  const [participantIds, setParticipantIds] = useState("");
   const [updates, setUpdates] = useState<AssistantThreadUpdate[]>([]);
 
   const assistantsQuery = useQuery({
@@ -27,14 +30,44 @@ export default function Home() {
     mutationFn: () => accounts.registerCurrentUser(),
   });
 
+  const conversationQuery = useQuery({
+    queryKey: ["assistant-conversation", conversationId],
+    queryFn: () => assistant.getConversation(conversationId as string),
+    enabled: authState.status === "authenticated" && !!conversationId,
+  });
+
   const streamMutation = useMutation({
     mutationFn: async () => {
-      setUpdates([]);
-      await assistant.streamMessage("support", { message }, (update) => {
-        setUpdates((current) => [...current, update]);
-      });
+      await assistant.streamMessage(
+        "support",
+        {
+          conversationId,
+          message,
+          participantUserIds: parseParticipantIds(participantIds),
+        },
+        (update) => {
+          setConversationId(update.conversationId);
+          setUpdates((current) => [...current, update]);
+        },
+      );
+      await queryClient.invalidateQueries({ queryKey: ["assistant-conversation"] });
     },
   });
+
+  function startNewThread() {
+    setConversationId(undefined);
+    setUpdates([]);
+    queryClient.removeQueries({ queryKey: ["assistant-conversation"] });
+  }
+
+  function parseParticipantIds(value: string) {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  const visibleUpdates = updates.filter((update) => update.type === "message");
 
   return (
     <main className="shell">
@@ -82,34 +115,57 @@ export default function Home() {
         </div>
 
         <div className="panel assistant-panel">
-          <h2>Assistant</h2>
+          <div className="panel-title-row">
+            <h2>Assistant</h2>
+            <button type="button" className="secondary-button" onClick={startNewThread}>
+              New thread
+            </button>
+          </div>
           <p className="muted">
             {assistantsQuery.data?.[0]?.description ??
               "Sign in to load assistant definitions from the Nest API."}
           </p>
-          <textarea
-            value={message}
-            onChange={(event) => setMessage(event.currentTarget.value)}
-            rows={4}
-          />
+          <dl className="conversation-meta">
+            <dt>Conversation</dt>
+            <dd>{conversationId ?? "New thread"}</dd>
+            <dt>Participants</dt>
+            <dd>{conversationQuery.data?.participants.length ?? "Not loaded"}</dd>
+          </dl>
+          <label className="field">
+            <span>Additional participant ids</span>
+            <input
+              value={participantIds}
+              onChange={(event) => setParticipantIds(event.currentTarget.value)}
+              placeholder="user-2, user-3"
+            />
+          </label>
+          <label className="field">
+            <span>Message</span>
+            <textarea
+              value={message}
+              onChange={(event) => setMessage(event.currentTarget.value)}
+              rows={4}
+            />
+          </label>
           <button
             type="button"
             disabled={authState.status !== "authenticated" || streamMutation.isPending}
             onClick={() => streamMutation.mutate()}
           >
-            Stream message
+            {conversationId ? "Continue thread" : "Start thread"}
           </button>
           {streamMutation.error ? <p className="error">{streamMutation.error.message}</p> : null}
+          {conversationQuery.error ? <p className="error">{conversationQuery.error.message}</p> : null}
         </div>
 
         <div className="panel stream-panel">
-          <h2>Stream</h2>
+          <h2>Conversation</h2>
           <ol>
-            {updates.length === 0 ? (
-              <li className="muted">No stream updates yet.</li>
+            {visibleUpdates.length === 0 ? (
+              <li className="muted">No conversation messages yet.</li>
             ) : (
-              updates.map((update, index) => (
-                <li key={`${update.conversationId}-${index}`}>
+              visibleUpdates.map((update, index) => (
+                <li key={`${update.messageId ?? update.conversationId}-${index}`} className={`role-${update.role}`}>
                   <span>{update.role}</span>
                   <p>{update.text}</p>
                 </li>
