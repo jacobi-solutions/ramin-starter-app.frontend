@@ -24,10 +24,7 @@ Key areas:
 
 Run from this repo root:
 
-1. `npm run typecheck`
-2. `npm test`
-3. `npm run contract:generate`
-4. `npm run build`
+1. `npm run verify`
 
 ## Architecture Rules
 
