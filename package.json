@@ -5,6 +5,7 @@
   "scripts": {
     "build": "react-router build",
     "cap:sync": "npm run build && cap sync",
+    "contract:generate": "openapi-typescript ../RaminStarterApp.Backend/openapi/ramin-api.json -o app/api/generated/ramin-api.ts",
     "dev": "react-router dev",
     "start": "vite preview --host 0.0.0.0 --outDir build/client",
     "test": "vitest run",
@@ -32,6 +33,7 @@
     "@types/node": "^22",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "openapi-typescript": "^7.13.0",
     "tailwindcss": "^4.2.2",
     "typescript": "^5.9.3",
     "vite": "^8.0.3",

@@ -1,19 +1,20 @@
+import type { components } from "../api/generated/ramin-api";
+
 export interface ErrorDto {
   errorCode?: string;
   errorMessage: string;
 }
 
-export interface BaseRequest<TPayload = unknown> {
-  correlationId?: string;
+export type BaseRequest<TPayload = unknown> = components["schemas"]["BaseRequestDto"] & {
   payload?: TPayload;
-}
+};
 
-export interface BaseResponse<TData = unknown> {
+export type BaseResponse<TData = unknown> = {
   correlationId?: string;
   data?: TData;
   errors: ErrorDto[];
   isSuccess: boolean;
-}
+};
 
 export function unwrapResponse<TData>(response: BaseResponse<TData>): TData {
   if (response.isSuccess) {

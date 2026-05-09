@@ -26,7 +26,8 @@ Run from this repo root:
 
 1. `npm run typecheck`
 2. `npm test`
-3. `npm run build`
+3. `npm run contract:generate`
+4. `npm run build`
 
 ## Architecture Rules
 
@@ -38,6 +39,8 @@ Run from this repo root:
 ## Contract Rule
 
 If backend request or response shapes change:
-- update the relevant service TypeScript interfaces
+- run backend `npm run contract:export`
+- run frontend `npm run contract:generate`
+- update service wrappers around generated contracts
 - update the route/component usage intentionally
 - run frontend typecheck/build and the relevant backend build/test

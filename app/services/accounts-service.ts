@@ -1,13 +1,9 @@
 import type { ApiClient } from "./api-client";
+import type { components } from "../api/generated/ramin-api";
 import type { BaseResponse } from "./base-contracts";
 import { unwrapResponse } from "./base-contracts";
 
-export interface AccountResponse {
-  cognitoSubject: string;
-  email: string;
-  id: string;
-  username: string;
-}
+export type AccountResponse = components["schemas"]["AccountResponseDto"];
 
 export class AccountsService {
   constructor(private readonly api: ApiClient) {}

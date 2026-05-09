@@ -1,24 +1,13 @@
 import type { ApiClient } from "./api-client";
+import type { components } from "../api/generated/ramin-api";
 import type { BaseResponse } from "./base-contracts";
 import { unwrapResponse } from "./base-contracts";
 
-export interface AssistantSummary {
-  description: string;
-  key: string;
-  name: string;
-}
+export type AssistantSummary = components["schemas"]["AssistantSummaryDto"];
 
-export interface AssistantThreadUpdate {
-  conversationId: string;
-  role: "assistant" | "system" | "user";
-  text: string;
-  type: "message" | "status";
-}
+export type AssistantThreadUpdate = components["schemas"]["AssistantThreadUpdateDto"];
 
-export interface SendAssistantMessageRequest {
-  conversationId?: string;
-  message: string;
-}
+export type SendAssistantMessageRequest = components["schemas"]["SendAssistantMessagePayloadDto"];
 
 export class AssistantService {
   constructor(private readonly api: ApiClient) {}
