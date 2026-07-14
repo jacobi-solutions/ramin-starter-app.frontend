@@ -8,7 +8,9 @@ import {
 } from "react-router";
 
 import type { Route } from "./+types/root";
-import { ServiceProvider } from "./services/service-context";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useState } from "react";
+import { AuthProvider } from "./auth/auth-context";
 import "./app.css";
 
 export const links: Route.LinksFunction = () => [
@@ -43,10 +45,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const [queryClient] = useState(() => new QueryClient());
+
   return (
-    <ServiceProvider>
-      <Outlet />
-    </ServiceProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <Outlet />
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
 

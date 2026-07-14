@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ApiClient } from "./api-client";
-import { AssistantService } from "./assistant-service";
+import type { ApiClient } from "../../services/api-client";
+import { getConversation, listAssistants, streamAssistantMessage } from "./api";
 
-describe("AssistantService", () => {
+describe("assistant API", () => {
   it("lists assistants through the API client", async () => {
     const assistants = [
       {
@@ -18,9 +18,7 @@ describe("AssistantService", () => {
         isSuccess: true,
       }),
     } as unknown as ApiClient;
-    const service = new AssistantService(api);
-
-    await expect(service.listAssistants()).resolves.toEqual(assistants);
+    await expect(listAssistants(api)).resolves.toEqual(assistants);
     expect(api.post).toHaveBeenCalledWith("/assistants/list", {});
   });
 
@@ -40,10 +38,9 @@ describe("AssistantService", () => {
         }),
       ),
     } as unknown as ApiClient;
-    const service = new AssistantService(api);
     const onUpdate = vi.fn();
 
-    await service.streamMessage("support", { message: "hello" }, onUpdate);
+    await streamAssistantMessage(api, "support", { message: "hello" }, onUpdate);
 
     expect(api.stream).toHaveBeenCalledWith(
       "/assistants/support/messages/stream",
@@ -69,9 +66,7 @@ describe("AssistantService", () => {
         isSuccess: true,
       }),
     } as unknown as ApiClient;
-    const service = new AssistantService(api);
-
-    await expect(service.getConversation("conversation-1")).resolves.toEqual(conversation);
+    await expect(getConversation(api, "conversation-1")).resolves.toEqual(conversation);
     expect(api.post).toHaveBeenCalledWith("/assistants/conversation/get", {
       payload: { conversationId: "conversation-1" },
     });

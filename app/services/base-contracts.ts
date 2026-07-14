@@ -18,7 +18,11 @@ export type BaseResponse<TData = unknown> = {
 
 export function unwrapResponse<TData>(response: BaseResponse<TData>): TData {
   if (response.isSuccess) {
-    return response.data as TData;
+    if (response.data === undefined) {
+      throw new Error("The API returned a successful response without data.");
+    }
+
+    return response.data;
   }
 
   const message =

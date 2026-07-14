@@ -1,0 +1,85 @@
+name: Deploy Static Site
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_ROLE_TO_ASSUME: ${{ vars.AWS_ROLE_TO_ASSUME }}
+      FRONTEND_BUCKET_NAME: ${{ vars.FRONTEND_BUCKET_NAME }}
+      CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
+      PUBLIC_APP_URL: ${{ vars.PUBLIC_APP_URL }}
+      VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || '/api' }}
+      VITE_COGNITO_AUTHORITY: ${{ vars.VITE_COGNITO_AUTHORITY }}
+      VITE_COGNITO_CLIENT_ID: ${{ vars.VITE_COGNITO_CLIENT_ID }}
+      VITE_COGNITO_REDIRECT_URI: ${{ vars.VITE_COGNITO_REDIRECT_URI }}
+
+    steps:
+      - name: Check required variables
+        run: |
+          test -n "$AWS_REGION"
+          test -n "$AWS_ROLE_TO_ASSUME"
+          test -n "$FRONTEND_BUCKET_NAME"
+          test -n "$CLOUDFRONT_DISTRIBUTION_ID"
+          test -n "$PUBLIC_APP_URL"
+          test -n "$VITE_COGNITO_AUTHORITY"
+          test -n "$VITE_COGNITO_CLIENT_ID"
+          test -n "$VITE_COGNITO_REDIRECT_URI"
+
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify and build frontend
+        run: npm run verify
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME }}
+
+      - name: Upload deployment assets
+        run: |
+          aws s3 sync build/client "s3://$FRONTEND_BUCKET_NAME" \
+            --exclude index.html \
+            --cache-control "public,max-age=31536000,immutable"
+
+      - name: Upload app shell
+        run: |
+          aws s3 cp build/client/index.html "s3://$FRONTEND_BUCKET_NAME/index.html" \
+            --cache-control "no-cache,no-store,must-revalidate" \
+            --content-type "text/html"
+
+      - name: Invalidate CloudFront and wait
+        run: |
+          INVALIDATION_ID=$(aws cloudfront create-invalidation \
+            --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" \
+            --paths "/*" \
+            --query Invalidation.Id \
+            --output text)
+          aws cloudfront wait invalidation-completed \
+            --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" \
+            --id "$INVALIDATION_ID"
+
+      - name: Verify public frontend
+        run: |
+          curl --fail --silent --show-error \
+            --retry 12 --retry-delay 10 --retry-all-errors \
+            "$PUBLIC_APP_URL/" >/dev/null

@@ -1,9 +1,7 @@
-import type { AuthService } from "./auth-service";
-
 export class ApiClient {
   constructor(
     private readonly baseUrl: string,
-    private readonly authService: AuthService,
+    private readonly getAccessToken: () => Promise<string | null>,
   ) {}
 
   async get<T>(path: string): Promise<T> {
@@ -43,6 +41,7 @@ export class ApiClient {
     while (true) {
       const { done, value } = await reader.read();
       if (done) {
+        buffer += decoder.decode().replace(/\r/g, "");
         break;
       }
 
@@ -65,6 +64,10 @@ export class ApiClient {
         boundary = buffer.indexOf("\n\n");
       }
     }
+
+    if (buffer.trim()) {
+      throw new Error("The response stream ended with an incomplete event.");
+    }
   }
 
   private async request<T>(path: string, init: RequestInit): Promise<T> {
@@ -73,7 +76,7 @@ export class ApiClient {
   }
 
   private async fetch(path: string, init: RequestInit) {
-    const token = await this.authService.getAccessToken();
+    const token = await this.getAccessToken();
     const response = await window.fetch(`${this.baseUrl}${path}`, {
       ...init,
       headers: {

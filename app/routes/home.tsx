@@ -1,8 +1,15 @@
 import type { Route } from "./+types/home";
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAuth, useServices } from "../services/service-context";
-import type { AssistantThreadUpdate } from "../services/assistant-service";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "../auth/auth-context";
+import { useRegisterCurrentUser } from "../features/accounts/queries";
+import type { AssistantThreadUpdate } from "../features/assistant/api";
+import {
+  assistantKeys,
+  useAssistantConversation,
+  useAssistants,
+  useSendAssistantMessage,
+} from "../features/assistant/queries";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -12,52 +19,37 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export default function Home() {
-  const { accounts, assistant, auth } = useServices();
   const queryClient = useQueryClient();
-  const authState = useAuth();
+  const auth = useAuth();
   const [conversationId, setConversationId] = useState<string>();
   const [message, setMessage] = useState("Create a support request for my onboarding issue.");
   const [participantIds, setParticipantIds] = useState("");
   const [updates, setUpdates] = useState<AssistantThreadUpdate[]>([]);
 
-  const assistantsQuery = useQuery({
-    queryKey: ["assistants"],
-    queryFn: () => assistant.listAssistants(),
-    enabled: authState.status === "authenticated",
-  });
+  const assistantsQuery = useAssistants();
+  const registerMutation = useRegisterCurrentUser();
+  const conversationQuery = useAssistantConversation(conversationId);
+  const streamMutation = useSendAssistantMessage();
 
-  const registerMutation = useMutation({
-    mutationFn: () => accounts.registerCurrentUser(),
-  });
-
-  const conversationQuery = useQuery({
-    queryKey: ["assistant-conversation", conversationId],
-    queryFn: () => assistant.getConversation(conversationId as string),
-    enabled: authState.status === "authenticated" && !!conversationId,
-  });
-
-  const streamMutation = useMutation({
-    mutationFn: async () => {
-      await assistant.streamMessage(
-        "support",
-        {
-          conversationId,
-          message,
-          participantUserIds: parseParticipantIds(participantIds),
-        },
-        (update) => {
-          setConversationId(update.conversationId);
-          setUpdates((current) => [...current, update]);
-        },
-      );
-      await queryClient.invalidateQueries({ queryKey: ["assistant-conversation"] });
-    },
-  });
+  function sendMessage() {
+    streamMutation.mutate({
+      assistantKey: "support",
+      request: {
+        conversationId,
+        message,
+        participantUserIds: parseParticipantIds(participantIds),
+      },
+      onUpdate: (update) => {
+        setConversationId(update.conversationId);
+        setUpdates((current) => [...current, update]);
+      },
+    });
+  }
 
   function startNewThread() {
     setConversationId(undefined);
     setUpdates([]);
-    queryClient.removeQueries({ queryKey: ["assistant-conversation"] });
+    queryClient.removeQueries({ queryKey: assistantKeys.conversations });
   }
 
   function parseParticipantIds(value: string) {
@@ -77,8 +69,8 @@ export default function Home() {
           <h1>A service-oriented React app on AWS foundations.</h1>
         </div>
         <div className="session-actions">
-          <span className={`status status-${authState.status}`}>{authState.status}</span>
-          {authState.status === "authenticated" ? (
+          <span className={`status status-${auth.status}`}>{auth.status}</span>
+          {auth.status === "authenticated" ? (
             <button type="button" onClick={() => void auth.signOut()}>
               Sign out
             </button>
@@ -95,13 +87,13 @@ export default function Home() {
           <h2>Account</h2>
           <dl>
             <dt>Email</dt>
-            <dd>{authState.email ?? "Not signed in"}</dd>
+            <dd>{auth.email ?? "Not signed in"}</dd>
             <dt>Subject</dt>
-            <dd>{authState.subject ?? "Unavailable"}</dd>
+            <dd>{auth.subject ?? "Unavailable"}</dd>
           </dl>
           <button
             type="button"
-            disabled={authState.status !== "authenticated" || registerMutation.isPending}
+            disabled={auth.status !== "authenticated" || registerMutation.isPending}
             onClick={() => registerMutation.mutate()}
           >
             Register API account
@@ -149,8 +141,8 @@ export default function Home() {
           </label>
           <button
             type="button"
-            disabled={authState.status !== "authenticated" || streamMutation.isPending}
-            onClick={() => streamMutation.mutate()}
+            disabled={auth.status !== "authenticated" || streamMutation.isPending}
+            onClick={sendMessage}
           >
             {conversationId ? "Continue thread" : "Start thread"}
           </button>

@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { AccountsService } from "./accounts-service";
-import type { ApiClient } from "./api-client";
+import type { ApiClient } from "../../services/api-client";
+import { registerCurrentUser } from "./api";
 
-describe("AccountsService", () => {
+describe("accounts API", () => {
   it("registers the current user through the API client", async () => {
     const account = {
       cognitoSubject: "subject-123",
@@ -17,9 +17,7 @@ describe("AccountsService", () => {
         isSuccess: true,
       }),
     } as unknown as ApiClient;
-    const service = new AccountsService(api);
-
-    await expect(service.registerCurrentUser()).resolves.toEqual(account);
+    await expect(registerCurrentUser(api)).resolves.toEqual(account);
     expect(api.post).toHaveBeenCalledWith("/accounts/register", {});
   });
 });

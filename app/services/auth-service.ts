@@ -28,6 +28,7 @@ export class AuthService {
             post_logout_redirect_uri: config.cognitoRedirectUri,
             response_type: "code",
             scope: "openid email profile",
+            automaticSilentRenew: true,
           })
         : null;
 
@@ -54,7 +55,8 @@ export class AuthService {
   }
 
   async completeSignInFromRedirect() {
-    if (!this.manager || !window.location.search.includes("code=")) {
+    const search = new URLSearchParams(window.location.search);
+    if (!this.manager || !search.has("code") || !search.has("state")) {
       return;
     }
 
@@ -64,8 +66,34 @@ export class AuthService {
   }
 
   async getAccessToken() {
-    const user = await this.manager?.getUser();
-    return user?.access_token ?? null;
+    if (!this.manager) {
+      return null;
+    }
+
+    const user = await this.manager.getUser();
+    if (!user) {
+      return null;
+    }
+
+    if (!user.expired) {
+      return user.access_token;
+    }
+
+    try {
+      const renewedUser = await this.manager.signinSilent();
+      if (!renewedUser) {
+        await this.manager.removeUser();
+        this.applyUser(null);
+        return null;
+      }
+
+      this.applyUser(renewedUser);
+      return renewedUser.access_token;
+    } catch {
+      await this.manager.removeUser();
+      this.applyUser(null);
+      return null;
+    }
   }
 
   async signIn() {

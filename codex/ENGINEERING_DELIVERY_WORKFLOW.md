@@ -13,7 +13,7 @@ Central policy:
 ## Repo Scope
 
 Repository root:
-- `/Users/shanedrye/jacobi/Digam/RaminStarterApp/ramin-starter-app.frontend`
+- `/Users/shanedrye/jacobi/Ramin/ramin-starter-app.frontend`
 
 Key areas:
 - `app/services` for Angular-inspired service classes and React provider hooks
