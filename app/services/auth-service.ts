@@ -12,6 +12,7 @@ type Listener = () => void;
 export class AuthService {
   private readonly listeners = new Set<Listener>();
   private readonly manager: UserManager | null;
+  private tokenRenewal: Promise<string | null> | null = null;
   private snapshot: AuthSnapshot = {
     email: null,
     status: "loading",
@@ -79,21 +80,11 @@ export class AuthService {
       return user.access_token;
     }
 
-    try {
-      const renewedUser = await this.manager.signinSilent();
-      if (!renewedUser) {
-        await this.manager.removeUser();
-        this.applyUser(null);
-        return null;
-      }
+    this.tokenRenewal ??= this.renewAccessToken().finally(() => {
+      this.tokenRenewal = null;
+    });
 
-      this.applyUser(renewedUser);
-      return renewedUser.access_token;
-    } catch {
-      await this.manager.removeUser();
-      this.applyUser(null);
-      return null;
-    }
+    return this.tokenRenewal;
   }
 
   async signIn() {
@@ -116,6 +107,27 @@ export class AuthService {
   private async loadUser() {
     const user = await this.manager?.getUser();
     this.applyUser(user ?? null);
+  }
+
+  private async renewAccessToken() {
+    try {
+      const renewedUser = await this.manager?.signinSilent();
+      if (renewedUser) {
+        this.applyUser(renewedUser);
+        return renewedUser.access_token;
+      }
+    } catch {
+      // Automatic silent renewal may have completed while this fallback was running.
+      const currentUser = await this.manager?.getUser();
+      if (currentUser && !currentUser.expired) {
+        this.applyUser(currentUser);
+        return currentUser.access_token;
+      }
+    }
+
+    await this.manager?.removeUser();
+    this.applyUser(null);
+    return null;
   }
 
   private applyUser(user: User | null) {

@@ -62,6 +62,41 @@ describe("AuthService", () => {
     expect(service.getSnapshot().status).toBe("authenticated");
   });
 
+  it("shares one silent renewal across concurrent token requests", async () => {
+    const expiredUser = user({ access_token: "expired", expired: true });
+    const renewedUser = user({ access_token: "renewed" });
+    let resolveRenewal: (value: User) => void = () => undefined;
+    const renewal = new Promise<User>((resolve) => {
+      resolveRenewal = resolve;
+    });
+    oidc.getUser.mockResolvedValueOnce(null).mockResolvedValue(expiredUser);
+    oidc.signinSilent.mockReturnValue(renewal);
+    const service = new AuthService(config);
+
+    const firstToken = service.getAccessToken();
+    const secondToken = service.getAccessToken();
+    resolveRenewal(renewedUser);
+
+    await expect(Promise.all([firstToken, secondToken])).resolves.toEqual(["renewed", "renewed"]);
+    expect(oidc.signinSilent).toHaveBeenCalledOnce();
+    expect(oidc.removeUser).not.toHaveBeenCalled();
+  });
+
+  it("keeps a session renewed automatically when fallback renewal loses the race", async () => {
+    const expiredUser = user({ access_token: "expired", expired: true });
+    const automaticallyRenewedUser = user({ access_token: "automatic-renewal" });
+    oidc.getUser
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(expiredUser)
+      .mockResolvedValueOnce(automaticallyRenewedUser);
+    oidc.signinSilent.mockRejectedValue(new Error("renewal already completed"));
+    const service = new AuthService(config);
+
+    await expect(service.getAccessToken()).resolves.toBe("automatic-renewal");
+    expect(oidc.removeUser).not.toHaveBeenCalled();
+    expect(service.getSnapshot().status).toBe("authenticated");
+  });
+
   it("clears an expired session when renewal fails", async () => {
     oidc.getUser.mockResolvedValueOnce(null).mockResolvedValueOnce(user({ expired: true }));
     oidc.signinSilent.mockRejectedValue(new Error("refresh failed"));
